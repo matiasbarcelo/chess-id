@@ -1,4 +1,3 @@
-from flask import Flask, request, redirect, url_for, jsonify
 import cv2
 import numpy as np
 import scipy.spatial as spatial
@@ -10,16 +9,6 @@ import glob
 # import caffe
 import skimage
 import pickle
-
-""" CONSTANTS """
-
-CAFFENET_DEPLOY_TXT = '/Users/daylenyang/caffe/models/finetune_chess/deploy.prototxt'
-CAFFENET_MODEL_FILE = '/Users/daylenyang/caffe/models/finetune_chess/finetune_chess_iter_5554.caffemodel'
-
-categories = ['bb', 'bk', 'bn', 'bp', 'bq', 'br', 'empty', 'wb', 'wk', 'wn', 'wp', 'wq', 'wr']
-BATCH_SIZE = 64
-
-assert 64 % BATCH_SIZE == 0
 
 """ LOGIC """
 
@@ -212,72 +201,3 @@ def get_square_to_pieces_dict(prob_matrix):
     for i in range(len(prob_matrix)):
         d[i] = map(lambda x: categories[x], np.argsort(-prob_matrix[i]))
     return d
-
-""" LOADING """
-
-net = caffe.Net(CAFFENET_DEPLOY_TXT, CAFFENET_MODEL_FILE, caffe.TEST)
-
-transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
-transformer.set_transpose('data', (2,0,1))
-transformer.set_mean('data', np.array([104.00698793, 116.66876762, 122.67891434]));
-transformer.set_raw_scale('data', 255)  # the reference model operates on images in [0,255] range instead of [0,1]
-transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
-
-caffe.set_device(0)
-caffe.set_mode_gpu()
-net.blobs['data'].reshape(BATCH_SIZE, 3, 227, 227)
-
-""" ROUTES """
-
-app = Flask(__name__)
-
-@app.route('/')
-def hello():
-    return 'Chess ID. usage: /upload'
-
-ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'JPG', 'JPEG'])
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    if request.method == 'POST':
-        file = request.files['file']
-        if file and allowed_file(file.filename):
-            start = time()
-            img = np.asarray(bytearray(file.read()))
-            board = find_board(img)
-            if board is None:
-                return jsonify({'error': 'could not find board'})
-            squares = split_board(board)
-            print('finished board rec', time() - start)
-            input_images = [transformer.preprocess('data', skimage.img_as_float(square).astype(np.float32)) for square in squares]
-            print('finished preprocess', time() - start)
-            predictions = None
-            print('using batch size', BATCH_SIZE)
-            for i in range(0, 64, BATCH_SIZE):
-                net.blobs['data'].data[...] = np.array(input_images[i:i+BATCH_SIZE])
-                out = net.forward()['prob']
-                if predictions == None:
-                    predictions = out
-                else:
-                    predictions = np.vstack((predictions, out))
-
-            print('finished nn', time() - start)
-            fen = get_fen(map(lambda x: categories[x], np.argmax(predictions, axis=1)))
-            json = {'fen': fen, 'time': time() - start}
-            return jsonify(json)
-    return '''
-    <!doctype html>
-    <title>Chess ID</title>
-    <h1>Upload board picture</h1>
-    <form action="" method=post enctype=multipart/form-data>
-      <p><input type=file name=file>
-         <input type=submit value=Upload>
-    </form>
-    '''
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=False)

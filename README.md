@@ -1,15 +1,11 @@
-# Chess ID
+# **CS 5393-006 Final Project : Chess ID**
+**Matias Barcelo Treiyer**  
+**December 2, 2024**
 
-What this repo is meant for: if you would to build your own chesspiece identification models, or if you want to deploy a Chess ID server.
+This repo is a clone of Yang's Chess ID project.
 
-## Experiment with your own models
+My final project and orignal work is located in Final_Project.ipynb
 
-First, grab the data: https://www.dropbox.com/s/618l4ddoykotmru/Chess%20ID%20Public%20Data.zip?dl=0
+I have also included some of the Jupyter Notebook files from class that helped me throughout the project.
 
-My experiments are available in the Jupyter notebook.
-
-## Deploy the Chess ID server
-
-First, grab the Caffe model: https://www.dropbox.com/s/fmlt5ook8ugovid/finetune_chess_iter_5554.caffemodel?dl=0
-
-Install all dependencies (Caffe, OpenCV, etc.). Edit paths in server.py and then run it.
+Thank you for everything this semester! I plan on continuing this project and will hopefully be able build the caffe deep learning framework using CMake soon.
